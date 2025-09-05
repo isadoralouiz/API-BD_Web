@@ -1,4 +1,12 @@
-const API_URL = "http://localhost:3000/receitas";
+import { db } from "./services/Firebase.js";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc
+} from "firebase/firestore";
 
 const resultado = document.getElementById("resultado");
 const salvarButton = document.getElementById("salvarButton");
@@ -8,15 +16,17 @@ const porcoesInput = document.getElementById("porcoes");
 const ingredientesInput = document.getElementById("ingredientes");
 const preparoInput = document.getElementById("preparo");
 
-function buscarReceitas() {
-  const receitas = localStorage.getItem("receitas");
-  return receitas ? JSON.parse(receitas) : [];
+// Buscar receitas no Firestore
+async function buscarReceitas() {
+  const querySnapshot = await getDocs(collection(db, "receitas"));
+  return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
 
+// Listar receitas na tela
 async function listarReceitas() {
   const receitas = await buscarReceitas();
 
-  if (receitas && receitas.length > 0) {
+  if (receitas.length > 0) {
     resultado.innerHTML = receitas
       .map(
         (receita) => `
@@ -26,8 +36,8 @@ async function listarReceitas() {
         <p><strong>Porções:</strong> ${receita.porcoes}</p>
         <p><strong>Ingredientes:</strong> ${receita.ingredientes.join(", ")}</p>
         <p><strong>Preparo:</strong> ${receita.preparo}</p>
-        <button onclick="editarReceita(${receita.id})">Editar</button>
-        <button onclick="deletarReceita(${receita.id})">Deletar</button>
+        <button onclick="editarReceita('${receita.id}')">Editar</button>
+        <button onclick="deletarReceita('${receita.id}')">Deletar</button>
       </div>
     `
       )
@@ -37,26 +47,28 @@ async function listarReceitas() {
   }
 }
 
-function salvarReceita() {
-  const receitas = buscarReceitas();
+// Salvar (criar ou atualizar) receita no Firestore
+async function salvarReceita() {
   const id = receitaIdInput.value;
   const novaReceita = {
-    id: receitas.length + 1,
     nome: nomeInput.value,
     porcoes: parseInt(porcoesInput.value),
-    ingredientes: ingredientesInput.value.split(",").map(i => i.trim()),
-    preparo: preparoInput.value
+    ingredientes: ingredientesInput.value.split(",").map((i) => i.trim()),
+    preparo: preparoInput.value,
   };
 
   if (id) {
-    const index = receitas.findIndex(r => r.id === parseInt(id));
-    receitas[index] = novaReceita;
+    // Atualizar
+    const receitaRef = doc(db, "receitas", id);
+    await updateDoc(receitaRef, novaReceita);
   } else {
-    receitas.push(novaReceita);
+    // Criar
+    await addDoc(collection(db, "receitas"), novaReceita);
   }
 
-  localStorage.setItem("receitas", JSON.stringify(receitas));
   listarReceitas();
+
+  // Limpar formulário
   receitaIdInput.value = "";
   nomeInput.value = "";
   porcoesInput.value = "";
@@ -64,10 +76,10 @@ function salvarReceita() {
   preparoInput.value = "";
 }
 
-
-function editarReceita(id) {
-  const receitas = buscarReceitas();
-  const r = receitas.find(r => r.id === id);
+// Carregar dados para edição
+async function editarReceita(id) {
+  const receitas = await buscarReceitas();
+  const r = receitas.find((r) => r.id === id);
 
   if (r) {
     receitaIdInput.value = r.id;
@@ -78,19 +90,16 @@ function editarReceita(id) {
   }
 }
 
-
+// Deletar receita no Firestore
 async function deletarReceita(id) {
-  
-    let receitas = JSON.parse(localStorage.getItem("receitas") || "[]");
-    receitas = receitas.filter(r => r.id !== id);
-    localStorage.setItem("receitas", JSON.stringify(receitas));
-  
+  const receitaRef = doc(db, "receitas", id);
+  await deleteDoc(receitaRef);
   listarReceitas();
 }
 
-
 salvarButton.addEventListener("click", salvarReceita);
 document.addEventListener("DOMContentLoaded", listarReceitas);
+
+// Deixar funções globais pros botões
 window.deletarReceita = deletarReceita;
 window.editarReceita = editarReceita;
-
