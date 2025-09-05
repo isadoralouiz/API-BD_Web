@@ -5,5 +5,6 @@ const rota = Router();
 
 //Rota para retornar os dados 
 rota.get('/', getAllDados);
+rota.post('/', criarReceita);
 
 export default rota; 

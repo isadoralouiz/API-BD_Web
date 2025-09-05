@@ -1,15 +1,16 @@
 import express from "express";
 import dataRoutes from "./routes/router.js";
+import cors from "cors";
 
-const app = express();
+const servidor = express();
 const PORT = process.env.PORT || 3000;
 
-//Middleware para interpretar o JSON
-app.use(express.json());
+servidor.use(cors());
+servidor.use(express.json());
+servidor.use(express.urlencoded({ extended: true }));
 
-//Rota API
-app.use('/', dataRoutes);
+servidor.use('/receitas', dataRoutes);
 
-app.listen(PORT, () => {
-    console.log("Servidor rodando em localHost:3000")
-})
+servidor.listen(PORT, () => {
+    console.log(`Servidor rodando em http://localhost:${PORT}`);
+});
