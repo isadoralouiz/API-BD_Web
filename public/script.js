@@ -1,12 +1,15 @@
-import { db } from "./services/Firebase.js";
+import { db } from "./service/firebase.js";
 import {
   collection,
-  getDocs,
   addDoc,
+  getDocs,
+  doc,
+  getDoc,
   updateDoc,
   deleteDoc,
-  doc
 } from "firebase/firestore";
+
+const API_URL = "http://localhost:3000/receitas";
 
 const resultado = document.getElementById("resultado");
 const salvarButton = document.getElementById("salvarButton");
@@ -16,30 +19,66 @@ const porcoesInput = document.getElementById("porcoes");
 const ingredientesInput = document.getElementById("ingredientes");
 const preparoInput = document.getElementById("preparo");
 
-// Buscar receitas no Firestore
-async function buscarReceitas() {
-  const querySnapshot = await getDocs(collection(db, "receitas"));
-  return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+// --------------------- BUSCAR RECEITAS ---------------------
+
+async function buscarReceitasAPI() {
+  try {
+    const response = await fetch(API_URL);
+    if (!response.ok) throw new Error("Erro ao buscar receitas da API");
+    const receitas = await response.json();
+
+    const receitasComId = receitas.map((r) => ({ ...r, id: "api-" + r.id }));
+
+    // Salvar no Firestore apenas se não existir
+    for (const receita of receitasComId) {
+      const q = query(
+        collection(db, "receitas"),
+        where("nome", "==", receita.nome)
+      );
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        const { id, ...dados } = receita;
+        await addDoc(collection(db, "receitas"), dados);
+      }
+    }
+
+    return receitasComId;
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
 }
 
-// Listar receitas na tela
+
+async function buscarReceitasFirestore() {
+  const snapshot = await getDocs(collection(db, "receitas"));
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+// --------------------- LISTAR RECEITAS ---------------------
 async function listarReceitas() {
-  const receitas = await buscarReceitas();
+  const receitasAPI = await buscarReceitasAPI();
+  const receitasFirestore = await buscarReceitasFirestore();
+  const receitasLocal = buscarReceitasLocal();
+
+  const receitas = [...receitasAPI, ...receitasFirestore, ...receitasLocal];
 
   if (receitas.length > 0) {
     resultado.innerHTML = receitas
       .map(
         (receita) => `
-      <div class="receita">
-        <h3>${receita.nome}</h3>
-        <p><strong>Id:</strong> ${receita.id}</p>
-        <p><strong>Porções:</strong> ${receita.porcoes}</p>
-        <p><strong>Ingredientes:</strong> ${receita.ingredientes.join(", ")}</p>
-        <p><strong>Preparo:</strong> ${receita.preparo}</p>
-        <button onclick="editarReceita('${receita.id}')">Editar</button>
-        <button onclick="deletarReceita('${receita.id}')">Deletar</button>
-      </div>
-    `
+        <div class="receita">
+          <h3>${receita.nome}</h3>
+          <p><strong>Id:</strong> ${receita.id}</p>
+          <p><strong>Porções:</strong> ${receita.porcoes}</p>
+          <p><strong>Ingredientes:</strong> ${receita.ingredientes.join(
+            ", "
+          )}</p>
+          <p><strong>Preparo:</strong> ${receita.preparo}</p>
+          <button onclick="editarReceita('${receita.id}')">Editar</button>
+          <button onclick="deletarReceita('${receita.id}')">Deletar</button>
+        </div>
+      `
       )
       .join("");
   } else {
@@ -47,9 +86,11 @@ async function listarReceitas() {
   }
 }
 
-// Salvar (criar ou atualizar) receita no Firestore
+// --------------------- SALVAR RECEITA ---------------------
+
 async function salvarReceita() {
   const id = receitaIdInput.value;
+
   const novaReceita = {
     nome: nomeInput.value,
     porcoes: parseInt(porcoesInput.value),
@@ -57,18 +98,50 @@ async function salvarReceita() {
     preparo: preparoInput.value,
   };
 
-  if (id) {
-    // Atualizar
-    const receitaRef = doc(db, "receitas", id);
-    await updateDoc(receitaRef, novaReceita);
+  if (id && !id.toString().startsWith("api-")) {
+    // Atualizar receita existente no Firestore
+    const docRef = doc(db, "receitas", id);
+    await updateDoc(docRef, novaReceita);
   } else {
-    // Criar
+    // Criar nova receita no Firestore
     await addDoc(collection(db, "receitas"), novaReceita);
   }
 
   listarReceitas();
+  limparCampos();
+}
 
-  // Limpar formulário
+// --------------------- EDITAR RECEITA ---------------------
+
+async function editarReceita(id) {
+  if (id.toString().startsWith("api-")) {
+    const response = await fetch(`${API_URL}/${id.replace("api-", "")}`);
+    const receita = await response.json();
+    preencherFormulario(receita, "api-" + receita.id);
+  } else {
+    const docRef = doc(db, "receitas", id);
+    const receitaSnap = await getDoc(docRef);
+    if (receitaSnap.exists()) {
+      preencherFormulario(receitaSnap.data(), receitaSnap.id);
+    } else {
+      alert("Receita não encontrada no Firestore.");
+    }
+  }
+}
+
+// --------------------- DELETAR RECEITA ---------------------
+
+async function deletarReceita(id) {
+  if (id.toString().startsWith("api-")) {
+    await fetch(`${API_URL}/${id.replace("api-", "")}`, { method: "DELETE" });
+  } else {
+    await deleteDoc(doc(db, "receitas", id));
+  }
+  listarReceitas();
+}
+// --------------------- LIMPAR CAMPOS ---------------------
+
+function limparCampos() {
   receitaIdInput.value = "";
   nomeInput.value = "";
   porcoesInput.value = "";
@@ -76,30 +149,9 @@ async function salvarReceita() {
   preparoInput.value = "";
 }
 
-// Carregar dados para edição
-async function editarReceita(id) {
-  const receitas = await buscarReceitas();
-  const r = receitas.find((r) => r.id === id);
-
-  if (r) {
-    receitaIdInput.value = r.id;
-    nomeInput.value = r.nome;
-    porcoesInput.value = r.porcoes;
-    ingredientesInput.value = r.ingredientes.join(", ");
-    preparoInput.value = r.preparo;
-  }
-}
-
-// Deletar receita no Firestore
-async function deletarReceita(id) {
-  const receitaRef = doc(db, "receitas", id);
-  await deleteDoc(receitaRef);
-  listarReceitas();
-}
+// --------------------- EVENTOS ---------------------
 
 salvarButton.addEventListener("click", salvarReceita);
 document.addEventListener("DOMContentLoaded", listarReceitas);
-
-// Deixar funções globais pros botões
 window.deletarReceita = deletarReceita;
 window.editarReceita = editarReceita;
