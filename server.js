@@ -1,16 +1,18 @@
-import express from "express";
-import dataRoutes from "./routes/router.js";
-import cors from "cors";
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dataRoutes from './router/router.js';
 
-const servidor = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-servidor.use(cors());
-servidor.use(express.json());
-servidor.use(express.urlencoded({ extended: true }));
+app.use(express.json()); // para processar JSON no corpo das requisições
+app.use('/api/movies', dataRoutes); // rota da API
+app.use(express.static(path.join(__dirname, 'public')));
 
-servidor.use('/receitas', dataRoutes);
-
-servidor.listen(PORT, () => {
-    console.log(`Servidor rodando em http://localhost:${PORT}`);
+app.listen(PORT, () => {
+    console.log("Servidor rodando em localhost:3000");
 });

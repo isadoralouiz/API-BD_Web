@@ -1,13 +1,12 @@
 {
-  "name": "api-node2",
+  "name": "progint-nodeexamples",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon server.js",
-    "start": "node server.js"
+    "dev": "nodemon server.js"
   },
   "keywords": [],
   "author": "",
@@ -15,15 +14,9 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "firebase": "^12.2.1",
+    "firebase": "^12.1.0"
+  },
+  "devDependencies": {
     "nodemon": "^3.1.10"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/isadoralouiz/API-NODE_WEB.git"
-  },
-  "bugs": {
-    "url": "https://github.com/isadoralouiz/API-NODE_WEB/issues"
-  },
-  "homepage": "https://github.com/isadoralouiz/API-NODE_WEB#readme"
+  }
 }

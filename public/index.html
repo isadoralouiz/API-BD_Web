@@ -1,25 +1,25 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Receitas do Paraná</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>My Movies</title>
 </head>
 <body>
-  <h1>Receitas Tradicionais do Paraná</h1>
+    
+    <h1>Meus Filmes Preferidos</h1>
+    <div id="movies">Carregando dados...</div>
 
-  <h2>Receita</h2>
-  <input type="text" id="nome" placeholder="Nome da Receita">
-  <input type="number" id="porcoes" placeholder="Porções">
-  <textarea id="ingredientes" placeholder="Ingredientes (separados por vírgula)"></textarea>
-  <textarea id="preparo" placeholder="Modo de Preparo"></textarea>
-  <input type="hidden" id="receitaId">
-  <button id="salvarButton">Criar</button>
+    <button id="button" class="button">Adicionar Filme</button>
 
-  <h2>Lista de Receitas</h2>
-  <div id="resultado">Carregando...</div>
 
-  <script type="module" src="script.js"></script>
+    <div id="form-container"></div>
+
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <script src="script.js"></script>
 </body>
 </html>

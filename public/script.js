@@ -1,157 +1,89 @@
-import { db } from "./service/firebase.js";
-import {
-  collection,
-  addDoc,
-  getDocs,
-  doc,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-} from "firebase/firestore";
+const firebaseConfig = {
+    apiKey: "AIzaSyC7UlbL3ie9pUAtZX25TzGAatqhVV24ftU",
+    authDomain: "moviesapi-900ba.firebaseapp.com",
+    projectId: "moviesapi-900ba",
+    storageBucket: "moviesapi-900ba.firebasestorage.app",
+    messagingSenderId: "575521996720",
+    appId: "1:575521996720:web:58d3819f9f4e18449b6075",
+    measurementId: "G-95GGJQDDH9"
+};
 
-const API_URL = "http://localhost:3000/receitas";
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-const resultado = document.getElementById("resultado");
-const salvarButton = document.getElementById("salvarButton");
-const receitaIdInput = document.getElementById("receitaId");
-const nomeInput = document.getElementById("nome");
-const porcoesInput = document.getElementById("porcoes");
-const ingredientesInput = document.getElementById("ingredientes");
-const preparoInput = document.getElementById("preparo");
+async function carregarMovies() {
+    try {
+        const container = document.getElementById('movies');
+        container.innerHTML = '';
 
-// --------------------- BUSCAR RECEITAS ---------------------
+        const response = await fetch('/api/movies');
+        const moviesFromAPI = await response.json();
 
-async function buscarReceitasAPI() {
-  try {
-    const response = await fetch(API_URL);
-    if (!response.ok) throw new Error("Erro ao buscar receitas da API");
-    const receitas = await response.json();
+        const snapshot = await db.collection("movies").get();
+        const moviesFirebase = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
 
-    const receitasComId = receitas.map((r) => ({ ...r, id: "api-" + r.id }));
+        const allMovies = [...moviesFromAPI, ...moviesFirebase];
 
-    // Salvar no Firestore apenas se não existir
-    for (const receita of receitasComId) {
-      const q = query(
-        collection(db, "receitas"),
-        where("nome", "==", receita.nome)
-      );
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) {
-        const { id, ...dados } = receita;
-        await addDoc(collection(db, "receitas"), dados);
-      }
+        allMovies.forEach((movie, index) => {
+            const div = document.createElement('div');
+            div.classList.add('movie-card');
+            div.innerHTML = `
+                <h2>Filme ${index + 1}</h2>
+                <p><strong>Título:</strong> ${movie.titulo}</p>
+                <p><strong>Ano:</strong> ${movie.ano}</p>
+                <p><strong>Diretor:</strong> ${movie.diretor}</p>
+                <p><strong>Nota (Rotten Tomatoes):</strong> ${movie.nota}</p>
+                <p><strong>Gênero:</strong> ${movie.genero}</p>
+            `;
+            container.appendChild(div);
+        });
+
+    } catch(error) {
+        console.error('Erro ao carregar dados:', error);
+        document.getElementById('movies').innerText = 'Erro ao carregar dados da API.';
     }
-
-    return receitasComId;
-  } catch (error) {
-    console.error(error);
-    return [];
-  }
 }
+  
+carregarMovies();
 
+document.getElementById('button').addEventListener('click', () => {
+    const formContainer = document.getElementById('form-container');
+    formContainer.innerHTML = `
+        <h2>Adicionar Filme</h2>
+        <form id="movie-form">
+            <input type="text" name="titulo" placeholder="Título" required><br>
+            <input type="text" name="ano" placeholder="Ano" required><br>
+            <input type="text" name="diretor" placeholder="Diretor" required><br>
+            <input type="text" name="nota" placeholder="Nota (Rotten Tomatoes)" required><br>
+            <input type="text" name="genero" placeholder="Gênero" required><br>
+            <button type="submit">Salvar</button>
+        </form>
+    `;
 
-async function buscarReceitasFirestore() {
-  const snapshot = await getDocs(collection(db, "receitas"));
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-}
+    document.getElementById('movie-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-// --------------------- LISTAR RECEITAS ---------------------
-async function listarReceitas() {
-  const receitasAPI = await buscarReceitasAPI();
-  const receitasFirestore = await buscarReceitasFirestore();
-  const receitasLocal = buscarReceitasLocal();
+        const formData = new FormData(e.target);
+        const data = {
+            titulo: formData.get('titulo'),
+            ano: formData.get('ano'),
+            diretor: formData.get('diretor'),
+            nota: formData.get('nota'),
+            genero: formData.get('genero'),
+        };
 
-  const receitas = [...receitasAPI, ...receitasFirestore, ...receitasLocal];
-
-  if (receitas.length > 0) {
-    resultado.innerHTML = receitas
-      .map(
-        (receita) => `
-        <div class="receita">
-          <h3>${receita.nome}</h3>
-          <p><strong>Id:</strong> ${receita.id}</p>
-          <p><strong>Porções:</strong> ${receita.porcoes}</p>
-          <p><strong>Ingredientes:</strong> ${receita.ingredientes.join(
-            ", "
-          )}</p>
-          <p><strong>Preparo:</strong> ${receita.preparo}</p>
-          <button onclick="editarReceita('${receita.id}')">Editar</button>
-          <button onclick="deletarReceita('${receita.id}')">Deletar</button>
-        </div>
-      `
-      )
-      .join("");
-  } else {
-    resultado.textContent = "Nenhuma receita encontrada.";
-  }
-}
-
-// --------------------- SALVAR RECEITA ---------------------
-
-async function salvarReceita() {
-  const id = receitaIdInput.value;
-
-  const novaReceita = {
-    nome: nomeInput.value,
-    porcoes: parseInt(porcoesInput.value),
-    ingredientes: ingredientesInput.value.split(",").map((i) => i.trim()),
-    preparo: preparoInput.value,
-  };
-
-  if (id && !id.toString().startsWith("api-")) {
-    // Atualizar receita existente no Firestore
-    const docRef = doc(db, "receitas", id);
-    await updateDoc(docRef, novaReceita);
-  } else {
-    // Criar nova receita no Firestore
-    await addDoc(collection(db, "receitas"), novaReceita);
-  }
-
-  listarReceitas();
-  limparCampos();
-}
-
-// --------------------- EDITAR RECEITA ---------------------
-
-async function editarReceita(id) {
-  if (id.toString().startsWith("api-")) {
-    const response = await fetch(`${API_URL}/${id.replace("api-", "")}`);
-    const receita = await response.json();
-    preencherFormulario(receita, "api-" + receita.id);
-  } else {
-    const docRef = doc(db, "receitas", id);
-    const receitaSnap = await getDoc(docRef);
-    if (receitaSnap.exists()) {
-      preencherFormulario(receitaSnap.data(), receitaSnap.id);
-    } else {
-      alert("Receita não encontrada no Firestore.");
-    }
-  }
-}
-
-// --------------------- DELETAR RECEITA ---------------------
-
-async function deletarReceita(id) {
-  if (id.toString().startsWith("api-")) {
-    await fetch(`${API_URL}/${id.replace("api-", "")}`, { method: "DELETE" });
-  } else {
-    await deleteDoc(doc(db, "receitas", id));
-  }
-  listarReceitas();
-}
-// --------------------- LIMPAR CAMPOS ---------------------
-
-function limparCampos() {
-  receitaIdInput.value = "";
-  nomeInput.value = "";
-  porcoesInput.value = "";
-  ingredientesInput.value = "";
-  preparoInput.value = "";
-}
-
-// --------------------- EVENTOS ---------------------
-
-salvarButton.addEventListener("click", salvarReceita);
-document.addEventListener("DOMContentLoaded", listarReceitas);
-window.deletarReceita = deletarReceita;
-window.editarReceita = editarReceita;
+        try {
+            await db.collection("movies").add(data);
+            alert("Filme adicionado com sucesso!");
+            e.target.reset();
+            carregarMovies();
+            document.getElementById('form-container').innerHTML = '';
+        } catch (error) {
+            console.error("Erro ao adicionar filme:", error);
+            alert("Erro ao salvar no Firebase.");
+        }
+    });
+});
