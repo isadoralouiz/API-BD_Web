@@ -20,9 +20,16 @@
   <h2>Lista de Receitas</h2>
   <div id="resultado">Carregando...</div>
 
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <!-- Botões de exportar/importar JSON -->
+  <button onclick="exportarReceitasJSON()">Exportar JSON</button>
+  <br><br>
+  <input type="file" accept="application/json" onchange="importarReceitasJSON(event)">
 
-  <script type="module" src="script.js"></script>
+  <!-- Firebase compat -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <!-- Seu JS (sem type="module") -->
+  <script src="script.js"></script>
 </body>
 </html>
