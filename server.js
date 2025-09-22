@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json()); // para processar JSON no corpo das requisições
-app.use('/api/movies', dataRoutes); // rota da API
+app.use('/receitas', dataRoutes); // rota da API
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.listen(PORT, () => {

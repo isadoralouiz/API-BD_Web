@@ -1,5 +1,6 @@
-const sampleDados = [
+const receitas = [
   {
+  
     id: 1,
     nome: "Pamonha doce com queijo",
     porcoes: 6,
